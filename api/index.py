@@ -1,35 +1,41 @@
 # -*- coding: UTF-8 -*-
 import requests
-import re
-from http.server import BaseHTTPRequestHandler
 import json
+from http.server import BaseHTTPRequestHandler
+import os
 
-def list_split(items, n):
-    return [items[i:i + n] for i in range(0, len(items), n)]
+token = os.environ.get("GITHUB_TOKEN")
+
+query = """
+query($login: String!) {
+  user(login: $login) {
+    contributionsCollection {
+      contributionCalendar {
+        totalContributions
+        weeks {
+          contributionDays {
+            date
+            contributionCount
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
 def getdata(name):
-    gitpage = requests.get("https://github.com/" + name)
-    data = gitpage.text
-    datadatereg = re.compile(r'data-date="(.*?)" data-level')
-    datacountreg = re.compile(r'<span class="sr-only">(.*?) contribution')
-    datadate = datadatereg.findall(data)
-    datacount = datacountreg.findall(data)
-    datacount = list(map(int, [0 if i == "No" else i for i in datacount]))
-
-    # 将datadate和datacount按照字典序排序
-    sorted_data = sorted(zip(datadate, datacount))
-    datadate, datacount = zip(*sorted_data)
-    
-    contributions = sum(datacount)
-    datalist = []
-    for index, item in enumerate(datadate):
-        itemlist = {"date": item, "count": datacount[index]}
-        datalist.append(itemlist)
-    datalistsplit = list_split(datalist, 7)
+    response = requests.post("https://api.github.com/graphql", json={"query": query, "variables": {"login": name}}, headers={"Authorization": f"Bearer {token}"})
+    data = response.json()
+    calendar = data["data"]["user"]["contributionsCollection"]["contributionCalendar"]
+    contributions = calendar["totalContributions"]
+    datalist = [{"date": day["date"], "count": day["contributionCount"]} for week in calendar["weeks"] for day in week["contributionDays"]]
     returndata = {
         "total": contributions,
-        "contributions": datalistsplit
+        "contributions": [datalist[i:i + 7] for i in range(0, len(datalist), 7)]
     }
     return returndata
+
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path
