@@ -6,6 +6,6 @@
 
 </div>
 
-部署教程请参考[原项目地址](https://github.com/Zfour/python_github_calendar_api)
+部署请参考[原项目地址](https://github.com/Zfour/python_github_calendar_api)
 
 本项目需要在vercel环境变量中填写`GITHUB_TOKEN`
